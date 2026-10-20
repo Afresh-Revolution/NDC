@@ -4,7 +4,7 @@
   "private": true,
   "description": "Northside Developers Cooperative (NDC Naija) — member-owned technology cooperative platform",
   "scripts": {
-    "dev": "next dev --port 3000",
+    "dev": "bun scripts/dev.mjs",
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "next lint",

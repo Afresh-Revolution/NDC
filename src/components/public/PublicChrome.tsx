@@ -121,7 +121,6 @@ export function PublicFooter() {
             <Link href="/cases">Cases</Link>
             <Link href="/opportunities">Opportunities</Link>
             <Link href="/governance">Governance</Link>
-            <Link href="/admin">Super admin</Link>
           </div>
         </div>
       </div>

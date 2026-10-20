@@ -65,6 +65,15 @@ export async function postJournal(input: {
   }
   if (input.lines.length < 2) throw new Error("Journal requires at least two lines");
 
+  const lines = [];
+  for (const line of input.lines) {
+    lines.push({
+      ...line,
+      accountId: await accountIdByCode(line.accountCode),
+      fundPoolId: line.fundPoolKind ? await poolIdByKind(line.fundPoolKind) : null,
+    });
+  }
+
   const posted = await sql.begin(async (tx) => {
     const [entry] = await tx<{ id: string }[]>`
       INSERT INTO journal_entries (memo, source, source_id, idempotency_key, posted_by)
@@ -85,19 +94,17 @@ export async function postJournal(input: {
       return { id: dup.id, duplicate: true as const };
     }
 
-    for (const line of input.lines) {
-      const accountId = await accountIdByCode(line.accountCode);
-      const fundPoolId = line.fundPoolKind ? await poolIdByKind(line.fundPoolKind) : null;
+    for (const line of lines) {
       await tx`
         INSERT INTO journal_lines (
           entry_id, account_id, member_id, project_id, fund_pool_id,
           debit_kobo, credit_kobo, description
         ) VALUES (
           ${entry.id},
-          ${accountId},
+          ${line.accountId},
           ${line.memberId ?? null},
           ${line.projectId ?? null},
-          ${fundPoolId},
+          ${line.fundPoolId},
           ${line.debitKobo ?? 0},
           ${line.creditKobo ?? 0},
           ${line.description ?? null}

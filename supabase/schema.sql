@@ -1203,3 +1203,65 @@ FOR EACH ROW
 WHEN (OLD.reversed_by_id IS NOT DISTINCT FROM NEW.reversed_by_id
   AND OLD.reverses_id IS NOT DISTINCT FROM NEW.reverses_id)
 EXECUTE FUNCTION forbid_journal_mutation();
+
+-- ---------------------------------------------------------------------------
+-- Membership subscriptions
+-- Prices are stored per invoice. Cancelled members receive no new invoices.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS membership_settings (
+  id                         integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  professional_monthly_kobo  integer NOT NULL DEFAULT 250000,
+  professional_yearly_kobo   integer NOT NULL DEFAULT 2500000,
+  associate_monthly_kobo     integer NOT NULL DEFAULT 100000,
+  associate_yearly_kobo      integer NOT NULL DEFAULT 1000000,
+  registration_kobo          integer NOT NULL DEFAULT 500000,
+  grace_days                 integer NOT NULL DEFAULT 7,
+  bank_name                  text NOT NULL DEFAULT '',
+  account_name               text NOT NULL DEFAULT '',
+  account_number             text NOT NULL DEFAULT '',
+  notify_email               text NOT NULL DEFAULT 'williambosworth777@icloud.com'
+);
+
+INSERT INTO membership_settings (id)
+VALUES (1)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS membership_subscriptions (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            uuid NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  membership_id      uuid REFERENCES memberships(id),
+  class              text NOT NULL CHECK (class IN ('professional', 'associate')),
+  frequency          text NOT NULL CHECK (frequency IN ('monthly', 'yearly')),
+  pending_frequency  text CHECK (pending_frequency IN ('monthly', 'yearly')),
+  started_at         date,
+  period_start       date,
+  period_end         date,
+  next_due           date,
+  cancelled_at       date,
+  created_at         timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS manual_payments (
+  id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id             uuid NOT NULL REFERENCES users(id),
+  amount_kobo         integer NOT NULL CHECK (amount_kobo > 0),
+  transfer_reference  text NOT NULL,
+  status              text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  note                text,
+  reviewed_by         uuid REFERENCES users(id),
+  reviewed_at         timestamptz,
+  created_at          timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS membership_reminders (
+  reminder_key  text PRIMARY KEY,
+  user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sent_at       timestamptz NOT NULL DEFAULT now()
+);
+
+DROP INDEX IF EXISTS membership_cycle_invoice_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS membership_cycle_invoice_idx
+  ON contribution_invoices (user_id, kind, period)
+  WHERE kind IN ('membership_monthly', 'membership_yearly') AND period IS NOT NULL AND status <> 'void';
+
+DROP INDEX IF EXISTS membership_registration_once_idx;

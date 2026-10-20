@@ -1,6 +1,7 @@
 import { requireUser } from "@/app/actions/auth";
 import { sql } from "@/db";
 import { formatNgn } from "@/lib/money";
+import Link from "next/link";
 
 export const metadata = { title: "Billing" };
 
@@ -14,6 +15,7 @@ export default async function BillingPage() {
     <>
       <p className="kicker">Billing</p>
       <h1>Invoices and processor intents</h1>
+      <p className="muted">Membership dues are billed on the <Link href="/workspace/membership">membership page</Link>.</p>
       <div className="table-wrap">
         <table className="data">
           <thead><tr><th>Reference</th><th>Kind</th><th>Amount</th><th>Status</th></tr></thead>

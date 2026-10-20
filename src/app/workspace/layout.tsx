@@ -6,6 +6,7 @@ const NAV = [
   { group: "Account", href: "/workspace/card", label: "Digital card" },
   { group: "Account", href: "/workspace/profile", label: "Profile" },
   { group: "Account", href: "/workspace/skills", label: "Skills" },
+  { group: "Account", href: "/workspace/membership", label: "Membership" },
   { group: "Account", href: "/workspace/billing", label: "Billing" },
   { group: "Account", href: "/workspace/contributions", label: "Contributions" },
   { group: "Account", href: "/workspace/statement", label: "Statement" },

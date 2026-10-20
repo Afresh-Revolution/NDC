@@ -1,4 +1,6 @@
 import { PageHero } from "@/components/PageHero";
+import { getMembershipSettings } from "@/lib/membership";
+import { formatNgn } from "@/lib/money";
 import Link from "next/link";
 
 export const metadata = { title: "Membership" };
@@ -10,7 +12,14 @@ const CLASSES = [
   ["Honorary adviser", "Advisory participation; no financial, voting or administrative privileges unless separately eligible."],
 ];
 
-export default function MembershipPage() {
+export default async function MembershipPage() {
+  let fees = "Professional membership is ₦2,500 monthly or ₦25,000 yearly, plus a one-time ₦5,000 registration. Associate membership is ₦1,000 monthly or ₦10,000 yearly, with no registration fee.";
+  try {
+    const settings = await getMembershipSettings();
+    fees = `Professional membership is ${formatNgn(settings.professional_monthly_kobo)} monthly or ${formatNgn(settings.professional_yearly_kobo)} yearly, plus a one-time ${formatNgn(settings.registration_kobo)} registration. Associate membership is ${formatNgn(settings.associate_monthly_kobo)} monthly or ${formatNgn(settings.associate_yearly_kobo)} yearly.`;
+  } catch {
+    fees = "Professional membership is ₦2,500 monthly or ₦25,000 yearly, plus a one-time ₦5,000 registration. Associate membership is ₦1,000 monthly or ₦10,000 yearly.";
+  }
   return (
     <>
       <PageHero
@@ -35,11 +44,7 @@ export default function MembershipPage() {
             <li>Application and dues invoicing; verified payment; committee approval; issuance of digital member card.</li>
             <li>Denial requires a stated reason and an independent appeals mechanism.</li>
           </ol>
-          <p className="muted">
-            Illustrative fees are not carried over automatically from any prior society. Registration,
-            monthly savings, share capital, optional project levy and annual renewal are priced only
-            after affordability survey, operating-budget analysis and member approval.
-          </p>
+          <p className="muted">{fees} Membership dues are separate from savings. Cancelling stops new invoices.</p>
           <Link href="/register" className="btn">
             Start application
           </Link>

@@ -4,6 +4,7 @@ import { sql } from "@/db";
 import { env } from "@/lib/env";
 import { postJournal } from "@/lib/ledger";
 import { memberSavingsBalance } from "@/lib/ledger";
+import { settleMembershipPayment } from "@/lib/membership";
 
 export async function POST(req: NextRequest) {
   const raw = await req.text();
@@ -74,6 +75,20 @@ export async function POST(req: NextRequest) {
           VALUES (${invoice.user_id}, ${bal.toString()}, now())
           ON CONFLICT (user_id) DO UPDATE SET balance_kobo = ${bal.toString()}, last_posted_at = now()
         `;
+      }
+    } else if (reference.startsWith("NDC-SUB-")) {
+      const intent = (await sql<{ id: string; user_id: string; amount_kobo: number }[]>`
+        SELECT id, user_id, amount_kobo FROM payment_intents WHERE provider_ref = ${reference} LIMIT 1
+      `)[0];
+      if (intent && amount >= Number(intent.amount_kobo)) {
+        await sql`UPDATE payment_intents SET status = 'success' WHERE id = ${intent.id}`;
+        await settleMembershipPayment({
+          userId: intent.user_id,
+          amountKobo: Number(intent.amount_kobo),
+          provider: "paystack",
+          providerRef: reference,
+          intentId: intent.id,
+        });
       }
     }
   }

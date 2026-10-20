@@ -6,7 +6,8 @@ import styles from "./IdleSnake.module.scss";
 
 const COLS = 18;
 const ROWS = 14;
-const IDLE_MS = 10000;
+const IDLE_MS = 15000;
+const SWIPE_PX = 10;
 
 type Point = { x: number; y: number };
 const DIRS: Record<string, Point> = {
@@ -37,18 +38,178 @@ function spawn(exclude: Point[]): Point {
   return { x: COLS - 1, y: ROWS - 1 };
 }
 
-function headingOf(body: Point[]): "faceRight" | "faceLeft" | "faceUp" | "faceDown" {
-  const head = body[0];
-  const neck = body[1];
-  if (!head || !neck) return "faceRight";
-  let dx = head.x - neck.x;
-  let dy = head.y - neck.y;
-  if (dx > 1) dx = -1;
-  if (dx < -1) dx = 1;
-  if (dy > 1) dy = -1;
-  if (dy < -1) dy = 1;
-  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "faceRight" : "faceLeft";
-  return dy >= 0 ? "faceDown" : "faceUp";
+type Vec = { x: number; y: number };
+
+function vsub(a: Vec, b: Vec): Vec {
+  return { x: a.x - b.x, y: a.y - b.y };
+}
+function vadd(a: Vec, b: Vec): Vec {
+  return { x: a.x + b.x, y: a.y + b.y };
+}
+function vmul(a: Vec, s: number): Vec {
+  return { x: a.x * s, y: a.y * s };
+}
+function vlen(a: Vec) {
+  return Math.hypot(a.x, a.y) || 1;
+}
+function vnorm(a: Vec): Vec {
+  const l = vlen(a);
+  return { x: a.x / l, y: a.y / l };
+}
+function vperp(a: Vec): Vec {
+  return { x: -a.y, y: a.x };
+}
+function cellCenter(p: Point): Vec {
+  return { x: p.x + 0.5, y: p.y + 0.5 };
+}
+
+function bodyChains(body: Point[]): Point[][] {
+  if (!body.length) return [];
+  const tailFirst = [...body].reverse();
+  const chains: Point[][] = [[tailFirst[0]]];
+  for (let i = 1; i < tailFirst.length; i++) {
+    const prev = tailFirst[i - 1];
+    const next = tailFirst[i];
+    const adjacent = Math.abs(prev.x - next.x) + Math.abs(prev.y - next.y) === 1;
+    if (adjacent) chains[chains.length - 1].push(next);
+    else chains.push([next]);
+  }
+  return chains;
+}
+
+function smoothCenters(points: Vec[]): Vec[] {
+  if (points.length < 3) return points;
+  const out: Vec[] = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const next = points[i + 1];
+    const inn = vnorm(vsub(curr, prev));
+    const outDir = vnorm(vsub(next, curr));
+    const turning = Math.abs(inn.x - outDir.x) > 0.2 || Math.abs(inn.y - outDir.y) > 0.2;
+    if (!turning) {
+      out.push(curr);
+      continue;
+    }
+    const cut = 0.46;
+    const a = vsub(curr, vmul(inn, cut));
+    const b = vadd(curr, vmul(outDir, cut));
+    const steps = 7;
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const u = 1 - t;
+      out.push({
+        x: u * u * a.x + 2 * u * t * curr.x + t * t * b.x,
+        y: u * u * a.y + 2 * u * t * curr.y + t * t * b.y,
+      });
+    }
+  }
+  out.push(points[points.length - 1]);
+  return out;
+}
+
+function densify(points: Vec[], step = 0.14): Vec[] {
+  if (points.length < 2) return points;
+  const out: Vec[] = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    const pieces = Math.max(1, Math.ceil(vlen(vsub(b, a)) / step));
+    for (let k = 1; k <= pieces; k++) {
+      const t = k / pieces;
+      out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+    }
+  }
+  return out;
+}
+
+function weave(samples: Vec[], phase: number, offset: number): Vec[] {
+  return samples.map((p, i) => {
+    const prev = samples[Math.max(0, i - 1)];
+    const next = samples[Math.min(samples.length - 1, i + 1)];
+    const normal = vperp(vnorm(vsub(next, prev)));
+    const t = i / Math.max(1, samples.length - 1);
+    const fade = Math.sin(t * Math.PI);
+    const wave = Math.sin(phase * 5 + (offset + i) * 0.18) * 0.22 * fade;
+    return vadd(p, vmul(normal, wave));
+  });
+}
+
+function ribbonPath(samples: Vec[], pointedTail: boolean): string {
+  if (samples.length < 2) return "";
+  const left: Vec[] = [];
+  const right: Vec[] = [];
+  for (let i = 0; i < samples.length; i++) {
+    const prev = samples[Math.max(0, i - 1)];
+    const next = samples[Math.min(samples.length - 1, i + 1)];
+    const normal = vperp(vnorm(vsub(next, prev)));
+    const t = i / (samples.length - 1);
+    const grow = pointedTail ? Math.pow(Math.min(1, t / 0.34), 1.35) : 1;
+    const width = 0.34 * grow;
+    left.push(vadd(samples[i], vmul(normal, width)));
+    right.push(vadd(samples[i], vmul(normal, -width)));
+  }
+  const cmd = (p: Vec) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+  return `M ${cmd(left[0])} ${left.slice(1).map((p) => `L ${cmd(p)}`).join(" ")} ${right
+    .reverse()
+    .map((p) => `L ${cmd(p)}`)
+    .join(" ")} Z`;
+}
+
+function SnakeFigure({ snake, food }: { snake: Point[]; food: Point }) {
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    let frame = 0;
+    const loop = (now: number) => {
+      setPhase(now / 1000);
+      frame = requestAnimationFrame(loop);
+    };
+    frame = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const chains = bodyChains(snake);
+  let walked = 0;
+  const bodies = chains.map((chain, index) => {
+    const centers = smoothCenters(chain.map(cellCenter));
+    const samples = weave(densify(centers), phase, walked);
+    walked += samples.length;
+    const headChain = index === chains.length - 1;
+    const tailChain = index === 0;
+    const end = samples[samples.length - 1] ?? cellCenter(chain[chain.length - 1]);
+    const before = samples[Math.max(0, samples.length - 2)] ?? end;
+    const facing = vnorm(vsub(end, before));
+    return {
+      key: index,
+      d: ribbonPath(samples, tailChain),
+      head: headChain ? vadd(end, vmul(facing, 0.08)) : null,
+      facing,
+    };
+  });
+  const head = bodies.find((part) => part.head)?.head;
+  const facing = bodies.find((part) => part.head)?.facing ?? { x: 1, y: 0 };
+  const angle = (Math.atan2(facing.y, facing.x) * 180) / Math.PI;
+
+  return (
+    <svg className={styles.figure} viewBox={`0 0 ${COLS} ${ROWS}`} preserveAspectRatio="xMidYMid meet">
+      <rect width={COLS} height={ROWS} fill="#12171b" />
+      <circle cx={food.x + 0.5} cy={food.y + 0.5} r="0.42" fill="#e2b84a" opacity="0.22" />
+      <circle cx={food.x + 0.5} cy={food.y + 0.5} r="0.26" fill="#e2b84a" />
+      {bodies.map((part) =>
+        part.d ? <path key={part.key} d={part.d} fill="#178f86" /> : null,
+      )}
+      {head ? (
+        <g transform={`translate(${head.x.toFixed(2)} ${head.y.toFixed(2)}) rotate(${angle.toFixed(2)})`}>
+          <ellipse cx="0.06" cy="0" rx="0.46" ry="0.33" fill="#178f86" />
+          <ellipse cx="0.14" cy="0" rx="0.4" ry="0.28" fill="#5ec4bc" />
+          <circle cx="0.32" cy="-0.11" r="0.055" fill="#07120f" />
+          <circle cx="0.32" cy="0.11" r="0.055" fill="#07120f" />
+          <circle cx="0.338" cy="-0.122" r="0.018" fill="#e7fff8" />
+          <circle cx="0.338" cy="0.098" r="0.018" fill="#e7fff8" />
+        </g>
+      ) : null}
+    </svg>
+  );
 }
 
 function inForm() {
@@ -57,6 +218,9 @@ function inForm() {
   const tag = el.tagName;
   return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (el as HTMLElement).isContentEditable;
 }
+
+/** Survives client navigation. A full reload starts a new module and clears it. */
+let dismissedUntilReload = false;
 
 function Cup({ place }: { place: 1 | 2 | 3 }) {
   const fill = place === 1 ? "#e2b84a" : place === 2 ? "#c9d1d8" : "#c47a3a";
@@ -95,6 +259,9 @@ export function IdleSnake() {
   const scoreRef = useRef(0);
   const posted = useRef(false);
   const swipe = useRef<{ x: number; y: number; id: number } | null>(null);
+  const stepTimer = useRef(0);
+  const dueAt = useRef(0);
+  const stepFn = useRef<(() => void) | null>(null);
   foodRef.current = food;
 
   const resetGame = useCallback(() => {
@@ -115,6 +282,7 @@ export function IdleSnake() {
   }, []);
 
   const close = useCallback(() => {
+    dismissedUntilReload = true;
     setOpen(false);
     setWide(false);
     setPaused(false);
@@ -139,8 +307,16 @@ export function IdleSnake() {
   }, []);
 
   const steer = useCallback((next: Point) => {
-    if (next.x + dir.current.x === 0 && next.y + dir.current.y === 0) return;
+    const queued = pending.current;
+    if (next.x === queued.x && next.y === queued.y) return;
+    if (next.x + queued.x === 0 && next.y + queued.y === 0) return;
     pending.current = next;
+    const wait = dueAt.current - performance.now();
+    if (stepFn.current && wait > 48) {
+      window.clearTimeout(stepTimer.current);
+      dueAt.current = performance.now() + 32;
+      stepTimer.current = window.setTimeout(stepFn.current, 32);
+    }
   }, []);
 
   const onSwipeStart = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
@@ -149,33 +325,36 @@ export function IdleSnake() {
     e.currentTarget.setPointerCapture(e.pointerId);
   }, []);
 
-  const onSwipeEnd = useCallback(
+  const onSwipeMove = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       const start = swipe.current;
       if (!start || e.pointerId !== start.id) return;
-      swipe.current = null;
       const dx = e.clientX - start.x;
       const dy = e.clientY - start.y;
-      const ax = Math.abs(dx);
-      const ay = Math.abs(dy);
-      if (Math.max(ax, ay) < 24) return;
-      if (ax > ay) steer({ x: dx > 0 ? 1 : -1, y: 0 });
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_PX) return;
+      if (Math.abs(dx) > Math.abs(dy)) steer({ x: dx > 0 ? 1 : -1, y: 0 });
       else steer({ x: 0, y: dy > 0 ? 1 : -1 });
+      swipe.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
     },
     [steer],
   );
+
+  const onSwipeEnd = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (swipe.current?.id === e.pointerId) swipe.current = null;
+  }, []);
 
   const onSwipeCancel = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
     if (swipe.current?.id === e.pointerId) swipe.current = null;
   }, []);
 
   useEffect(() => {
+    if (dismissedUntilReload) return;
     let t: number | undefined;
     const bump = () => {
       if (t) window.clearTimeout(t);
-      if (open || inForm()) return;
+      if (open || inForm() || dismissedUntilReload) return;
       t = window.setTimeout(() => {
-        if (!inForm()) {
+        if (!inForm() && !dismissedUntilReload) {
           resetGame();
           setWide(false);
           setOpen(true);
@@ -203,7 +382,6 @@ export function IdleSnake() {
   useEffect(() => {
     if (!open || dead || paused) return;
     let cancelled = false;
-    let id = 0;
     const step = () => {
       if (cancelled) return;
       dir.current = pending.current;
@@ -227,12 +405,18 @@ export function IdleSnake() {
         next.pop();
         return next;
       });
-      id = window.setTimeout(step, tickMs(scoreRef.current));
+      const delay = tickMs(scoreRef.current);
+      dueAt.current = performance.now() + delay;
+      stepTimer.current = window.setTimeout(step, delay);
     };
-    id = window.setTimeout(step, tickMs(scoreRef.current));
+    stepFn.current = step;
+    const delay = tickMs(scoreRef.current);
+    dueAt.current = performance.now() + delay;
+    stepTimer.current = window.setTimeout(step, delay);
     return () => {
       cancelled = true;
-      window.clearTimeout(id);
+      stepFn.current = null;
+      window.clearTimeout(stepTimer.current);
     };
   }, [open, dead, paused]);
 
@@ -281,7 +465,6 @@ export function IdleSnake() {
   if (!open) return null;
 
   const overlay = dead ? "ate itself" : paused ? "paused" : null;
-  const face = headingOf(snake);
 
   return (
     <aside
@@ -308,38 +491,13 @@ export function IdleSnake() {
         <div
           className={styles.stage}
           onPointerDown={onSwipeStart}
+          onPointerMove={onSwipeMove}
           onPointerUp={onSwipeEnd}
           onPointerCancel={onSwipeCancel}
           aria-label={touchUi ? "Swipe to steer" : undefined}
         >
-          <div
-            className={styles.board}
-            style={{
-              gridTemplateColumns: `repeat(${COLS}, 1fr)`,
-              gridTemplateRows: `repeat(${ROWS}, 1fr)`,
-              aspectRatio: `${COLS} / ${ROWS}`,
-            }}
-          >
-            {Array.from({ length: COLS * ROWS }, (_, i) => {
-              const x = i % COLS;
-              const y = Math.floor(i / COLS);
-              const body = snake.findIndex((p) => p.x === x && p.y === y);
-              const isFood = food.x === x && food.y === y;
-              return (
-                <i
-                  key={i}
-                  className={
-                    body === 0
-                      ? `${styles.head} ${styles[face]}`
-                      : body > 0
-                        ? styles.seg
-                        : isFood
-                          ? styles.food
-                          : styles.cell
-                  }
-                />
-              );
-            })}
+          <div className={styles.board}>
+            <SnakeFigure snake={snake} food={food} />
           </div>
           {overlay ? <div className={styles.overlay}>{overlay}</div> : null}
         </div>

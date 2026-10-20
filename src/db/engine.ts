@@ -1,8 +1,11 @@
 import { PGlite } from "@electric-sql/pglite";
 import { citext } from "@electric-sql/pglite/contrib/citext";
 import { pgcrypto } from "@electric-sql/pglite/contrib/pgcrypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { resolve } from "node:path";
 import postgres from "postgres";
+
+const pgliteTransaction = new AsyncLocalStorage<true>();
 
 const JSON_MARK = Symbol("sql.json");
 
@@ -52,27 +55,32 @@ function fromPglite(pg: PGlite): SqlClient {
     strings: TemplateStringsArray,
     ...values: unknown[]
   ) {
+    if (pgliteTransaction.getStore()) {
+      throw new Error("A query used the shared database connection inside an open transaction.");
+    }
     const { text, params } = compile(strings, values);
     const result = await pg.query<Record<string, unknown>>(text, params);
     return plainRows<T>(result.rows);
   }) as SqlClient;
 
   run.begin = async (fn) =>
-    pg.transaction(async (tx) => {
-      const inner = (async function txSql<T = Record<string, unknown>[]>(
-        strings: TemplateStringsArray,
-        ...values: unknown[]
-      ) {
-        const { text, params } = compile(strings, values);
-        const result = await tx.query<Record<string, unknown>>(text, params);
-        return plainRows<T>(result.rows);
-      }) as SqlClient;
-      inner.json = run.json;
-      inner.unsafe = async (text) => tx.exec(text);
-      inner.begin = run.begin;
-      inner.end = async () => undefined;
-      return fn(inner);
-    });
+    pg.transaction(async (tx) =>
+      pgliteTransaction.run(true, async () => {
+        const inner = (async function txSql<T = Record<string, unknown>[]>(
+          strings: TemplateStringsArray,
+          ...values: unknown[]
+        ) {
+          const { text, params } = compile(strings, values);
+          const result = await tx.query<Record<string, unknown>>(text, params);
+          return plainRows<T>(result.rows);
+        }) as SqlClient;
+        inner.json = run.json;
+        inner.unsafe = async (text) => tx.exec(text);
+        inner.begin = run.begin;
+        inner.end = async () => undefined;
+        return fn(inner);
+      }),
+    );
 
   run.json = (value) => ({ [JSON_MARK]: true, value });
   run.unsafe = async (text) => pg.exec(text);

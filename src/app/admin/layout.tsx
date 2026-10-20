@@ -10,6 +10,7 @@ const NAV = [
   { group: "National", href: "/admin/members", label: "Members" },
   { group: "National", href: "/admin/committees", label: "Committees" },
   { group: "National", href: "/admin/permissions", label: "Permissions" },
+  { group: "Finance", href: "/admin/membership", label: "Membership" },
   { group: "Finance", href: "/admin/invoices", label: "Invoices" },
   { group: "Finance", href: "/admin/reconciliation", label: "Reconciliation" },
   { group: "Finance", href: "/admin/savings", label: "Savings" },
