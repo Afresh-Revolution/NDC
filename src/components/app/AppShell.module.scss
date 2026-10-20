@@ -215,8 +215,16 @@
 
 .meta {
   margin: 0;
+  max-width: min(46vw, 28rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--ink-soft);
   font-size: 0.86rem;
+}
+
+.quick {
+  display: none;
 }
 
 .tools {
@@ -289,5 +297,19 @@
   }
   .body {
     padding: 1.15rem 0.95rem 3.5rem;
+  }
+  .desk {
+    display: none;
+  }
+  .quick {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin: 0.2rem 0.85rem 0.4rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid var(--rule);
+  }
+  .meta {
+    display: none;
   }
 }

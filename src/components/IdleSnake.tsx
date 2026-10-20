@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { getSnakeBoard, submitSnakeScore, type SnakeRank } from "@/app/actions/snake";
 import styles from "./IdleSnake.module.scss";
 
@@ -74,11 +74,13 @@ export function IdleSnake() {
   const [signedIn, setSignedIn] = useState(false);
   const [me, setMe] = useState<string | null>(null);
   const [ranks, setRanks] = useState<SnakeRank[]>([]);
+  const [touchUi, setTouchUi] = useState(false);
   const dir = useRef<Point>({ x: 1, y: 0 });
   const pending = useRef<Point>({ x: 1, y: 0 });
   const foodRef = useRef(food);
   const scoreRef = useRef(0);
   const posted = useRef(false);
+  const swipe = useRef<{ x: number; y: number; id: number } | null>(null);
   foodRef.current = food;
 
   const resetGame = useCallback(() => {
@@ -125,6 +127,32 @@ export function IdleSnake() {
   const steer = useCallback((next: Point) => {
     if (next.x + dir.current.x === 0 && next.y + dir.current.y === 0) return;
     pending.current = next;
+  }, []);
+
+  const onSwipeStart = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "mouse") return;
+    swipe.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+
+  const onSwipeEnd = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      const start = swipe.current;
+      if (!start || e.pointerId !== start.id) return;
+      swipe.current = null;
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      const ax = Math.abs(dx);
+      const ay = Math.abs(dy);
+      if (Math.max(ax, ay) < 24) return;
+      if (ax > ay) steer({ x: dx > 0 ? 1 : -1, y: 0 });
+      else steer({ x: 0, y: dy > 0 ? 1 : -1 });
+    },
+    [steer],
+  );
+
+  const onSwipeCancel = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (swipe.current?.id === e.pointerId) swipe.current = null;
   }, []);
 
   useEffect(() => {
@@ -205,6 +233,14 @@ export function IdleSnake() {
   }, [open, dead, signedIn]);
 
   useEffect(() => {
+    const mq = window.matchMedia("(hover: none), (pointer: coarse)");
+    const sync = () => setTouchUi(mq.matches || navigator.maxTouchPoints > 0);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === " " || e.code === "Space" || e.key.toLowerCase() === "p") {
@@ -254,7 +290,13 @@ export function IdleSnake() {
         </span>
       </header>
       <div className={styles.play}>
-        <div className={styles.stage}>
+        <div
+          className={styles.stage}
+          onPointerDown={onSwipeStart}
+          onPointerUp={onSwipeEnd}
+          onPointerCancel={onSwipeCancel}
+          aria-label={touchUi ? "Swipe to steer" : undefined}
+        >
           <div
             className={styles.board}
             style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)`, gridTemplateRows: `repeat(${ROWS}, 1fr)` }}
@@ -299,7 +341,17 @@ export function IdleSnake() {
       </div>
       <footer className={styles.meta}>
         <span>SCORE {String(score).padStart(3, "0")}</span>
-        <span>{dead ? "ate itself — replay" : paused ? "paused · space" : "slow → faster"}</span>
+        <span>
+          {dead
+            ? "ate itself — replay"
+            : paused
+              ? touchUi
+                ? "paused"
+                : "paused · space"
+              : touchUi
+                ? "swipe to turn"
+                : "slow → faster"}
+        </span>
         {dead ? (
           <button type="button" onClick={resetGame}>
             replay
@@ -310,27 +362,25 @@ export function IdleSnake() {
           </button>
         )}
       </footer>
-      <div className={styles.pad} aria-hidden={!wide}>
-        <button type="button" className={styles.up} onPointerDown={() => steer({ x: 0, y: -1 })}>
-          ▲
-        </button>
-        <button type="button" className={styles.left} onPointerDown={() => steer({ x: -1, y: 0 })}>
-          ◀
-        </button>
-        <button
-          type="button"
-          className={styles.ok}
-          onPointerDown={dead ? resetGame : togglePause}
-        >
-          {dead ? "GO" : paused ? "▶" : "Ⅱ"}
-        </button>
-        <button type="button" className={styles.right} onPointerDown={() => steer({ x: 1, y: 0 })}>
-          ▶
-        </button>
-        <button type="button" className={styles.down} onPointerDown={() => steer({ x: 0, y: 1 })}>
-          ▼
-        </button>
-      </div>
+      {touchUi ? null : (
+        <div className={styles.pad} aria-hidden={!wide}>
+          <button type="button" className={styles.up} onPointerDown={() => steer({ x: 0, y: -1 })}>
+            ▲
+          </button>
+          <button type="button" className={styles.left} onPointerDown={() => steer({ x: -1, y: 0 })}>
+            ◀
+          </button>
+          <button type="button" className={styles.ok} onPointerDown={dead ? resetGame : togglePause}>
+            {dead ? "GO" : paused ? "▶" : "Ⅱ"}
+          </button>
+          <button type="button" className={styles.right} onPointerDown={() => steer({ x: 1, y: 0 })}>
+            ▶
+          </button>
+          <button type="button" className={styles.down} onPointerDown={() => steer({ x: 0, y: 1 })}>
+            ▼
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

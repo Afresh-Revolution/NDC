@@ -16,6 +16,8 @@ body {
   font-size: 16px;
   line-height: 1.55;
   min-height: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .app-layer {
@@ -34,6 +36,17 @@ body {
       color-mix(in srgb, var(--rule) 55%, transparent) 72px
     );
   background-attachment: fixed;
+}
+
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+pre {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 a {
@@ -342,9 +355,27 @@ table.data th {
 }
 
 @media (max-width: 900px) {
+  .grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .grid-2,
-  .grid-3,
   .split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .container,
+  .narrow {
+    width: min(1180px, calc(100% - 1.4rem));
+  }
+  .lede {
+    font-size: 1.02rem;
+  }
+  .panel {
+    padding: 1rem 0.9rem;
+  }
+  .grid-3 {
     grid-template-columns: 1fr;
   }
 }

@@ -101,6 +101,16 @@ export function AppShell({
           </section>
         ))}
       </nav>
+      <div className={styles.quick}>
+        <Link href="/" className={styles.link}>
+          <span>Public site</span>
+        </Link>
+        {user.roles.includes("super_admin") || user.roles.includes("admin") ? (
+          <Link href={home.startsWith("/admin") ? "/workspace" : "/admin"} className={styles.link}>
+            <span>{home.startsWith("/admin") ? "Workspace" : "Admin"}</span>
+          </Link>
+        ) : null}
+      </div>
       <div className={styles.who}>
         <span className={styles.avatar} aria-hidden>
           {initials || "ND"}
@@ -153,11 +163,11 @@ export function AppShell({
           <div className={styles.tools}>
             <ThemeToggle />
             {user.roles.includes("super_admin") || user.roles.includes("admin") ? (
-              <Link href={home.startsWith("/admin") ? "/workspace" : "/admin"} className="btn ghost small">
+              <Link href={home.startsWith("/admin") ? "/workspace" : "/admin"} className={`btn ghost small ${styles.desk}`}>
                 {home.startsWith("/admin") ? "Workspace" : "Admin"}
               </Link>
             ) : null}
-            <Link href="/" className="btn ghost small">
+            <Link href="/" className={`btn ghost small ${styles.desk}`}>
               Public site
             </Link>
             <form action={logoutAction}>

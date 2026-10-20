@@ -83,6 +83,7 @@
 .stage {
   position: relative;
   min-height: 0;
+  touch-action: none;
 }
 
 .wide .stage {
@@ -303,6 +304,12 @@
     height: auto;
     border-left: 0;
     border-top: 1px solid #1d2a2e;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .pad {
+    display: none;
   }
 }
 
