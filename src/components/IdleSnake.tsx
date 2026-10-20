@@ -37,6 +37,20 @@ function spawn(exclude: Point[]): Point {
   return { x: COLS - 1, y: ROWS - 1 };
 }
 
+function headingOf(body: Point[]): "faceRight" | "faceLeft" | "faceUp" | "faceDown" {
+  const head = body[0];
+  const neck = body[1];
+  if (!head || !neck) return "faceRight";
+  let dx = head.x - neck.x;
+  let dy = head.y - neck.y;
+  if (dx > 1) dx = -1;
+  if (dx < -1) dx = 1;
+  if (dy > 1) dy = -1;
+  if (dy < -1) dy = 1;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "faceRight" : "faceLeft";
+  return dy >= 0 ? "faceDown" : "faceUp";
+}
+
 function inForm() {
   const el = document.activeElement;
   if (!el) return false;
@@ -267,6 +281,7 @@ export function IdleSnake() {
   if (!open) return null;
 
   const overlay = dead ? "ate itself" : paused ? "paused" : null;
+  const face = headingOf(snake);
 
   return (
     <aside
@@ -299,7 +314,11 @@ export function IdleSnake() {
         >
           <div
             className={styles.board}
-            style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)`, gridTemplateRows: `repeat(${ROWS}, 1fr)` }}
+            style={{
+              gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+              gridTemplateRows: `repeat(${ROWS}, 1fr)`,
+              aspectRatio: `${COLS} / ${ROWS}`,
+            }}
           >
             {Array.from({ length: COLS * ROWS }, (_, i) => {
               const x = i % COLS;
@@ -310,7 +329,13 @@ export function IdleSnake() {
                 <i
                   key={i}
                   className={
-                    body === 0 ? styles.head : body > 0 ? styles.seg : isFood ? styles.food : styles.cell
+                    body === 0
+                      ? `${styles.head} ${styles[face]}`
+                      : body > 0
+                        ? styles.seg
+                        : isFood
+                          ? styles.food
+                          : styles.cell
                   }
                 />
               );
