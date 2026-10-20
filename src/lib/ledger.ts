@@ -65,7 +65,7 @@ export async function postJournal(input: {
   }
   if (input.lines.length < 2) throw new Error("Journal requires at least two lines");
 
-  const lines = [];
+  const lines: Array<JournalLineInput & { accountId: string; fundPoolId: string | null }> = [];
   for (const line of input.lines) {
     lines.push({
       ...line,
