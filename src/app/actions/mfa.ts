@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/db";
-import { safeNext } from "@/app/actions/auth";
+import { safeNext } from "@/lib/safe-next";
 import { currentUser } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { decrypt, encrypt, verifyPassword } from "@/lib/crypto";

@@ -9,6 +9,7 @@ import { randomToken, sha256 } from "@/lib/crypto";
 import { sendMail, transactionalHtml } from "@/lib/mail";
 import { env } from "@/lib/env";
 import { audit } from "@/lib/audit";
+import { safeNext } from "@/lib/safe-next";
 
 const registerSchema = z.object({
   firstName: z.string().min(1),
@@ -108,11 +109,6 @@ export async function requestResetAction(formData: FormData) {
     );
   }
   redirect("/reset?sent=1");
-}
-
-export function safeNext(value: string) {
-  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) return "/workspace";
-  return value;
 }
 
 export async function requireUser() {

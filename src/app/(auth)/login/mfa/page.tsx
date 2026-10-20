@@ -1,5 +1,5 @@
 import { verifyMfaAction } from "@/app/actions/mfa";
-import { safeNext } from "@/app/actions/auth";
+import { safeNext } from "@/lib/safe-next";
 import { currentUser } from "@/lib/auth";
 import { PublicHeader } from "@/components/public/PublicChrome";
 import { redirect } from "next/navigation";
