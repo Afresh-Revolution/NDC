@@ -1,5 +1,6 @@
 import { randomBytes, scrypt as scryptCb } from "node:crypto";
 import { promisify } from "node:util";
+import { pathToFileURL } from "node:url";
 import { getSql } from "./engine";
 
 const scrypt = promisify(scryptCb);
@@ -326,7 +327,10 @@ async function seed() {
   await sql.end();
 }
 
-seed().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+const entry = process.argv[1];
+if (entry && import.meta.url === pathToFileURL(entry).href) {
+  seed().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
