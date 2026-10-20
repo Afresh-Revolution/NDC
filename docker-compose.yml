@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ndc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ndc
+      POSTGRES_PASSWORD: ndc_local_dev
+      POSTGRES_DB: ndc_naija
+    ports:
+      - "5432:5432"
+    volumes:
+      - ndc_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ndc -d ndc_naija"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ndc_pg_data:

@@ -1,0 +1,53 @@
+$ink: #16141a;
+$ink-soft: #3d3933;
+$paper: #f3efe6;
+$paper-2: #e8e1d4;
+$rule: #d4cbb8;
+$terra: #c24d1a;
+$terra-deep: #8f3512;
+$forest: #0f6f6a;
+$brand: #148078;
+$gold: #b0892e;
+$danger: #8f2433;
+$ok: #2c6e56;
+$white: #fffcf7;
+
+:root {
+  --ink: #{$ink};
+  --ink-soft: #{$ink-soft};
+  --paper: #{$paper};
+  --paper-2: #{$paper-2};
+  --rule: #{$rule};
+  --terra: #{$terra};
+  --terra-deep: #{$terra-deep};
+  --forest: #{$forest};
+  --brand: #{$brand};
+  --gold: #{$gold};
+  --danger: #{$danger};
+  --ok: #{$ok};
+  --white: #{$white};
+  --on-brand: #f4fffc;
+  --shadow: 0 18px 40px -28px rgba(22, 20, 26, 0.45);
+  --radius: 2px;
+  --font-sans: var(--font-sans-actual), "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-display: var(--font-display-actual), Syne, sans-serif;
+  --font-mono: var(--font-mono-actual), "IBM Plex Mono", ui-monospace, monospace;
+}
+
+[data-theme="dark"] {
+  --ink: #f3efe6;
+  --ink-soft: #c9c2b4;
+  --paper: #121015;
+  --paper-2: #1b1820;
+  --rule: #2c2833;
+  --terra: #e06a36;
+  --terra-deep: #f0a37a;
+  --forest: #5ec4bc;
+  --brand: #5ec4bc;
+  --gold: #d4b45a;
+  --danger: #e06b78;
+  --ok: #7dba9f;
+  --white: #19161d;
+  --on-brand: #f4fffc;
+  --shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+}
