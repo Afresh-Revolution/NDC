@@ -104,9 +104,12 @@ CREATE TABLE IF NOT EXISTS users (
   mfa_backup_codes text[],
   status          user_status NOT NULL DEFAULT 'pending',
   last_login_at   timestamptz,
+  mfa_last_step   bigint,
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_last_step bigint;
 
 CREATE TABLE IF NOT EXISTS chapters (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),

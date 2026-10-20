@@ -1,7 +1,7 @@
 "use server";
 
 import { sql } from "@/db";
-import { currentUser } from "@/lib/auth";
+import { currentUser, mfaPending } from "@/lib/auth";
 
 export type SnakeRank = {
   userId: string;
@@ -60,7 +60,7 @@ export async function submitSnakeScore(score: number) {
     return getSnakeBoard();
   }
   const user = await currentUser();
-  if (!user) return getSnakeBoard();
+  if (!user || mfaPending(user)) return getSnakeBoard();
   await ensureTable();
   await sql`
     INSERT INTO snake_scores (user_id, score)

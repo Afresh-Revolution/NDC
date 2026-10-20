@@ -9,6 +9,7 @@ import { memberSavingsBalance, postJournal } from "@/lib/ledger";
 import { assertNotSelfReview } from "@/lib/funding";
 import { flagEnabled } from "@/lib/flags";
 import { randomToken } from "@/lib/crypto";
+import { verifyAndConsumeMfa } from "@/lib/mfa-user";
 
 async function staff() {
   const user = await requireUser();
@@ -89,6 +90,10 @@ export async function approveWithdrawal(formData: FormData) {
   requirePermission(user, "finance.withdraw.approve");
   if (!user.mfaEnabled && process.env.NODE_ENV === "production") {
     throw new Error("Step-up MFA is required for payout approvers");
+  }
+  if (user.mfaEnabled) {
+    const ok = await verifyAndConsumeMfa(user.id, String(formData.get("code") ?? ""));
+    if (!ok) throw new Error("Authenticator code is required");
   }
   const id = String(formData.get("id") ?? "");
   const slot = String(formData.get("slot") ?? "one");

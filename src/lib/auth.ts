@@ -19,6 +19,8 @@ export type AuthUser = {
   roles: string[];
   permissions: string[];
   chapterId: string | null;
+  mfaVerified: boolean;
+  sessionHash: string;
 };
 
 export async function createUser(input: {
@@ -117,15 +119,21 @@ export async function currentUser(): Promise<AuthUser | null> {
   try {
     const { payload } = await jwtVerify(token, encoder.encode(env.authSecret));
     const sid = String(payload.sid ?? "");
-    const sessions = await sql<{ user_id: string }[]>`
-      SELECT user_id FROM sessions
+    const sessions = await sql<{ user_id: string; mfa_verified_at: string | null }[]>`
+      SELECT user_id, mfa_verified_at::text FROM sessions
       WHERE token_hash = ${sid}
         AND revoked_at IS NULL
         AND expires_at > now()
       LIMIT 1
     `;
     if (!sessions[0]) return null;
-    return loadUser(sessions[0].user_id);
+    const user = await loadUser(sessions[0].user_id);
+    if (!user) return null;
+    return {
+      ...user,
+      mfaVerified: sessions[0].mfa_verified_at != null,
+      sessionHash: sid,
+    };
   } catch {
     return null;
   }
@@ -174,6 +182,8 @@ export async function loadUser(userId: string): Promise<AuthUser | null> {
     roles: roles.map((r) => r.slug),
     permissions: permissions.map((p) => p.slug),
     chapterId: u.chapter_id,
+    mfaVerified: false,
+    sessionHash: "",
   };
 }
 
@@ -194,6 +204,10 @@ export function isStaff(user: AuthUser | null) {
 
 export function isAdmin(user: AuthUser | null) {
   return hasRole(user, "super_admin", "admin");
+}
+
+export function mfaPending(user: AuthUser | null) {
+  return Boolean(user?.mfaEnabled && !user.mfaVerified);
 }
 
 export function requirePermission(user: AuthUser | null, permission: string) {

@@ -1,6 +1,7 @@
 import { requireUser } from "@/app/actions/auth";
 import { AppShell } from "@/components/app/AppShell";
 import { can } from "@/lib/auth";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 const NAV = [
@@ -40,7 +41,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <AppShell user={user} title="Super admin" nav={NAV} home="/admin">
       {!user.mfaEnabled ? (
-        <div className="flash error">MFA is required for admins and payout approvers. Enable TOTP before production payouts.</div>
+        <div className="flash error">MFA is required for admins and payout approvers. <Link href="/workspace/settings">Set up an authenticator</Link> before production payouts.</div>
       ) : null}
       {children}
     </AppShell>

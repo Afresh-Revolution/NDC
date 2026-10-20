@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/db";
 import { authenticate, createSession, createUser, currentUser, destroySession } from "@/lib/auth";
@@ -65,8 +66,9 @@ export async function loginAction(formData: FormData) {
     if (!user) throw new Error("Invalid credentials");
     await createSession(user.id, { mfaVerified: !user.mfa_enabled });
     await audit({ actorId: user.id, action: "auth.login", entity: "sessions", entityId: user.id });
-    if (user.mfa_enabled) redirect("/login/mfa");
-    redirect(next.startsWith("/") ? next : "/workspace");
+    const dest = safeNext(next);
+    if (user.mfa_enabled) redirect(`/login/mfa?next=${encodeURIComponent(dest)}`);
+    redirect(dest);
   } catch (err) {
     if (typeof err === "object" && err && "digest" in err) throw err;
     redirect("/login?error=1");
@@ -108,8 +110,17 @@ export async function requestResetAction(formData: FormData) {
   redirect("/reset?sent=1");
 }
 
+export function safeNext(value: string) {
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) return "/workspace";
+  return value;
+}
+
 export async function requireUser() {
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (user.mfaEnabled && !user.mfaVerified) {
+    const path = (await headers()).get("x-ndc-path") ?? "/workspace";
+    redirect(`/login/mfa?next=${encodeURIComponent(safeNext(path.split("?")[0] ?? "/workspace"))}`);
+  }
   return user;
 }

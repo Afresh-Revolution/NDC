@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { currentUser, can } from "@/lib/auth";
+import { currentUser, can, mfaPending } from "@/lib/auth";
 import { sql } from "@/db";
 
 export async function GET() {
   const user = await currentUser();
-  if (!can(user, "finance.export")) {
+  if (mfaPending(user) || !can(user, "finance.export")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const rows = await sql<{

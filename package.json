@@ -25,6 +25,7 @@
     "next": "^15.5.4",
     "otpauth": "^9.4.1",
     "postgres": "^3.4.7",
+    "qrcode": "^1.5.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.63.0",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@playwright/test": "^1.55.1",
     "@types/node": "^24.6.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "drizzle-kit": "^0.31.5",

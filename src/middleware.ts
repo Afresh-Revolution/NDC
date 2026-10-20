@@ -22,7 +22,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const res = NextResponse.next();
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-ndc-path", pathname);
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.headers.set("X-Frame-Options", "DENY");
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");

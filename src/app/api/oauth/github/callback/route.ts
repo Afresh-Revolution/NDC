@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentUser } from "@/lib/auth";
+import { currentUser, mfaPending } from "@/lib/auth";
 import { sql } from "@/db";
 import { encrypt } from "@/lib/crypto";
 import { env } from "@/lib/env";
 
 export async function GET(req: NextRequest) {
   const user = await currentUser();
-  if (!user) return NextResponse.redirect(new URL("/login", env.appUrl));
+  if (!user || mfaPending(user)) return NextResponse.redirect(new URL("/login/mfa", env.appUrl));
   const code = req.nextUrl.searchParams.get("code");
   if (!code || !env.githubId || !env.githubSecret) {
     return NextResponse.redirect(new URL("/workspace/settings?oauth=skipped", env.appUrl));
